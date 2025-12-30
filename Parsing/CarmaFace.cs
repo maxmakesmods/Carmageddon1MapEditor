@@ -1,5 +1,4 @@
-﻿using Microsoft.Xna.Framework;
-
+﻿
 namespace Carmageddon1MapEditor.Parsing
 {
     public class CarmaFace
@@ -7,6 +6,7 @@ namespace Carmageddon1MapEditor.Parsing
         public CarmaTriangle indices;
         public short unknownbitflag;
         public byte unknown;
+        public int matIndex = -1;
 
         public override string ToString()
         {
