@@ -7,47 +7,27 @@ using System.Linq;
 
 namespace Carmageddon1MapEditor.Parsing
 {
-    public class CarmDatParser
+    public class CarmDatParser : CarmBaseParser
     {
-        private static readonly byte[] fileheader = { 0x00, 0x00, 0x00, 0x12, 0x00, 0x00, 0x00, 0x08, 0x00, 0x00, 0xFA, 0xCE, 0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00, 0x36 };
+        private static readonly byte[] fileheader = { 0x00, 0x00, 0x00, 0x12, 0x00, 0x00, 0x00, 0x08, 0x00, 0x00, 0xFA, 0xCE, 0x00, 0x00, 0x00, 0x02 };
+
+        protected override byte[] Fileheader => fileheader;
 
         private const int BlockTypeVertexPositions = 23;
         private const int BlockTypeVertexUVs = 24;
         private const int BlockTypeIndices = 53;
+        private const int BlockTypeMeshHeader = 54;
+        private const int BlockTypeMaterial = 22;
+        private const int BlockTypeFaceMatIndices = 26;
 
-        private readonly byte[] rawdata;
-        private int currentoffset;
-
-        public readonly int filetype;
-        public readonly short unknown;
-        public readonly string name;
-
-        public readonly List<Vector3> vertexPositions = [];
-        public readonly List<Vector2> vertexUVs = [];
-        public readonly List<CarmaFace> faces = [];
+        public readonly List<CarmaMesh> meshes = [];
 
         public CarmDatParser(byte[] rawdata)
+            : base(rawdata)
         {
-            if (rawdata.Length < fileheader.Length)
-            {
-                throw new ArgumentException("invalid data");
-            }
-            if (!rawdata[..fileheader.Length].SequenceEqual(fileheader))
-            {
-                throw new ArgumentException("invalid data");
-            }
-
-            this.rawdata = rawdata;
-            currentoffset = fileheader.Length;
-
-            filetype = ParseInt32();
-            unknown = ParseInt16();
-            name = ParseString();
-
-            while (ParseBlock()) ;
         }
 
-        private bool ParseBlock()
+        protected override bool ParseBlock()
         {
             if (currentoffset >= rawdata.Length)
             {
@@ -56,6 +36,9 @@ namespace Carmageddon1MapEditor.Parsing
 
             int blockType = ParseInt32();
             int size = ParseInt32();
+
+            //Debug.WriteLine($"block {blockType}, size {size}, offset {currentoffset}");
+
             if (size == 0)
             {
                 if (blockType != 0)
@@ -65,9 +48,9 @@ namespace Carmageddon1MapEditor.Parsing
                 if (currentoffset != rawdata.Length)
                 {
                     //throw new ArgumentException();
-                    Debug.WriteLine("unexpected end of data before end of file");
+                    //Debug.WriteLine("unexpected end of data before end of file");
                 }
-                return false;
+                //return false;
             }
 
             switch (blockType)
@@ -81,8 +64,17 @@ namespace Carmageddon1MapEditor.Parsing
                 case BlockTypeIndices:
                     ParseFaces(size);
                     break;
+                case BlockTypeMeshHeader:
+                    ParseMeshHeader(size);
+                    break;
+                case BlockTypeMaterial:
+                    ParseMaterial(size);
+                    break;
+                case BlockTypeFaceMatIndices:
+                    ParseMatIndices(size);
+                    break;
                 default:
-                    Debug.WriteLine($"unknown block type: {blockType}");
+                    //Debug.WriteLine($"unknown block type: {blockType}");
                     SkipBlock(size);
                     break;
             }
@@ -90,9 +82,50 @@ namespace Carmageddon1MapEditor.Parsing
             return true;
         }
 
-        private void SkipBlock(int size)
+        private void ParseMatIndices(int size)
         {
-            currentoffset += size;
+            int numFaces = ParseInt32();
+            int numBytesPerFace = ParseInt32();
+            if ((size - sizeof(int) - sizeof(int)) != numFaces * numBytesPerFace)
+            {
+                throw new ArgumentException($"invalid MatIndices block!");
+            }
+            for (int i = 0; i < numFaces; i++)
+            {
+                var faceMatIndex = numBytesPerFace switch
+                {
+                    1 => ParseByte(),
+                    2 => ParseInt16(),
+                    4 => ParseInt32(),
+                    _ => throw new ArgumentException($"invalid numBytesPerFace: {numBytesPerFace}"),
+                };
+                meshes[^1].faces[i].matIndex = faceMatIndex - 1;
+            }
+        }
+
+        private void ParseMaterial(int size)
+        {
+            int numMaterials = ParseInt32();
+            for (int i = 0; i < numMaterials; i++)
+            {
+                meshes[^1].materialNames.Add(ParseString());
+            }
+            int totalStringLength = meshes[^1].materialNames.Select(s => s.Length).Aggregate((l1, l2) => l1 + l2 + 1) + 1;
+            if (size != totalStringLength + sizeof(int))
+            {
+                throw new ArgumentException($"invalid material block!");
+            }
+        }
+
+        private void ParseMeshHeader(int size)
+        {
+            short unknown = ParseInt16();
+            string name = ParseString();
+            if (name.Length + 1 + sizeof(short) != size)
+            {
+                throw new ArgumentException($"invalid mesh header!");
+            }
+            meshes.Add(new CarmaMesh(unknown, name));
         }
 
         private void ParseFaces(int size)
@@ -104,7 +137,7 @@ namespace Carmageddon1MapEditor.Parsing
             }
             for (int i = 0; i < numFaces; i++)
             {
-                faces.Add(new()
+                meshes[^1].faces.Add(new()
                 {
                     indices = new(ParseInt16(), ParseInt16(), ParseInt16()),
                     unknownbitflag = ParseInt16(),
@@ -122,7 +155,7 @@ namespace Carmageddon1MapEditor.Parsing
             }
             for (int i = 0; i < numVertices; i++)
             {
-                vertexUVs.Add(new(ParseFloat(), ParseFloat()));
+                meshes[^1].vertexUVs.Add(new(ParseFloat(), ParseFloat()));
             }
         }
 
@@ -135,86 +168,8 @@ namespace Carmageddon1MapEditor.Parsing
             }
             for (int i = 0; i < numVertices; i++)
             {
-                vertexPositions.Add(new(ParseFloat(), ParseFloat(), ParseFloat()));
+                meshes[^1].vertexPositions.Add(new(ParseFloat(), ParseFloat(), ParseFloat()));
             }
-        }
-
-        private string ParseString()
-        {
-            int count = 0;
-            while (rawdata[currentoffset + count] != 0)
-            {
-                count++;
-            }
-            string value = System.Text.Encoding.ASCII.GetString(rawdata, currentoffset, count);
-            currentoffset += count + 1; // include delimiter zero
-            return value;
-        }
-
-        private byte ParseByte()
-        {
-            byte value = rawdata[currentoffset];
-            currentoffset += sizeof(byte);
-            return value;
-        }
-
-        private short ParseInt16()
-        {
-            short value;
-            if (BitConverter.IsLittleEndian)
-            {
-                byte[] endianbuffer = new byte[sizeof(short)];
-                Array.Copy(rawdata, currentoffset, endianbuffer, 0, sizeof(short));
-                Array.Reverse(endianbuffer);
-                value = BitConverter.ToInt16(endianbuffer);
-            }
-            else
-            {
-                value = BitConverter.ToInt16(rawdata, currentoffset);
-            }
-            currentoffset += sizeof(short);
-            return value;
-        }
-
-        private int ParseInt32()
-        {
-            int value;
-            if (BitConverter.IsLittleEndian)
-            {
-                byte[] endianbuffer = new byte[sizeof(int)];
-                Array.Copy(rawdata, currentoffset, endianbuffer, 0, sizeof(int));
-                Array.Reverse(endianbuffer);
-                value = BitConverter.ToInt32(endianbuffer);
-            }
-            else
-            {
-                value = BitConverter.ToInt32(rawdata, currentoffset);
-            }
-            currentoffset += sizeof(int);
-            return value;
-        }
-
-        private float ParseFloat()
-        {
-            float value;
-            if (BitConverter.IsLittleEndian)
-            {
-                byte[] endianbuffer = new byte[sizeof(float)];
-                Array.Copy(rawdata, currentoffset, endianbuffer, 0, sizeof(float));
-                Array.Reverse(endianbuffer);
-                value = BitConverter.ToSingle(endianbuffer);
-            }
-            else
-            {
-                value = BitConverter.ToSingle(rawdata, currentoffset);
-            }
-            currentoffset += sizeof(float);
-            return value;
-        }
-
-        private static void ParseVertices()
-        {
-
         }
     }
 }
