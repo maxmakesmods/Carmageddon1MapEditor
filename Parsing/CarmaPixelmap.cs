@@ -20,17 +20,53 @@ namespace Carmageddon1MapEditor.Parsing
 
         private Texture2D texture;
 
-        internal Texture2D GetTexture(GraphicsDevice graphicsDevice)
+        internal Texture2D GetTexture(GraphicsDevice graphicsDevice, Texture2D paletteTexture)
         {
             if (texture == null)
             {
-                texture = new Texture2D(graphicsDevice, assumedWidth, assumedHeight, false, SurfaceFormat.Color);
-                Color[] colors = new Color[pixelData.Length];
-                for (int i = 0; i < pixelData.Length; i++)
+                if (bytesPerPixel == 4)
                 {
-                    colors[i] = new Color(0, (int)pixelData[i], 0, 255);
+                    // assume ARGB
+                    texture = new Texture2D(graphicsDevice, assumedWidth, assumedHeight, false, SurfaceFormat.Color);
+                    Color[] colors = new Color[assumedWidth * assumedHeight];
+                    for (int i = 0; i < colors.Length; i++)
+                    {
+                        colors[i] = new Color(pixelData[i * 4 + 1], pixelData[i * 4 + 2], pixelData[i * 4 + 3], (byte)255);
+                    }
+                    texture.SetData(colors);
                 }
-                texture.SetData(colors);
+                else if (bytesPerPixel == 3)
+                {
+                    // assume RGB
+                    texture = new Texture2D(graphicsDevice, assumedWidth, assumedHeight, false, SurfaceFormat.Color);
+                    Color[] colors = new Color[assumedWidth * assumedHeight];
+                    for (int i = 0; i < colors.Length; i++)
+                    {
+                        colors[i] = new Color(pixelData[i * 3], pixelData[i * 3 + 1], pixelData[i * 3 + 2], (byte)255);
+                    }
+                    texture.SetData(colors);
+                }
+                else if (bytesPerPixel == 2)
+                {
+                    // TODO: 16bit color
+                    throw new NotImplementedException("16bit color not implemented");
+                }
+                else if (bytesPerPixel == 1)
+                {
+                    texture = new Texture2D(graphicsDevice, assumedWidth, assumedHeight, false, SurfaceFormat.Color);
+                    Color[] paletteColors = new Color[paletteTexture.Width * paletteTexture.Height];
+                    paletteTexture.GetData(paletteColors);
+                    Color[] colors = new Color[pixelData.Length];
+                    for (int i = 0; i < pixelData.Length; i++)
+                    {
+                        colors[i] = paletteColors[pixelData[i]];
+                    }
+                    texture.SetData(colors);
+                }
+                else
+                {
+                    throw new ArgumentException($"invalid bytesPerPixel: {bytesPerPixel}");
+                }
             }
             return texture;
         }

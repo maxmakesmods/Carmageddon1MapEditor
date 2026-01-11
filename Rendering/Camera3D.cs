@@ -4,23 +4,8 @@ using Microsoft.Xna.Framework.Input;
 
 namespace Carmageddon1MapEditor.Rendering
 {
-    internal class Camera3D
+    public class Camera3D : Camera
     {
-        private static readonly float NearPlane = 0.01f;
-        private static readonly float FarPlane = 1000f;
-
-        public Viewport Viewport { get; set; }
-
-        public Matrix Rotation => Matrix.CreateFromYawPitchRoll(yaw, pitch, 0f);
-        public Matrix Translation => Matrix.CreateTranslation(position);
-        public Matrix View => Matrix.CreateLookAt(position, position + Forward, Up);
-        public Matrix Projection => Matrix.CreatePerspectiveFieldOfView(MathHelper.ToRadians(fov), Viewport.AspectRatio, NearPlane, FarPlane);
-
-        public Vector3 Forward => Vector3.Transform(Vector3.Forward, Rotation);
-        public Vector3 Right => Vector3.Transform(Vector3.Right, Rotation);
-        public Vector3 Up => Vector3.Transform(Vector3.Up, Rotation);
-
-        public Vector3 position;
         public float yaw;
         public float pitch;
         public float fov = 45f;
@@ -31,17 +16,26 @@ namespace Carmageddon1MapEditor.Rendering
         private int lastMouseX = 0;
         private int lastMouseY = 0;
 
-        public Camera3D(Vector3 worldCenter)
+        public override Matrix View => Matrix.CreateLookAt(position, position + Forward, Up);
+        public override Matrix Projection => Matrix.CreatePerspectiveFieldOfView(MathHelper.ToRadians(fov), Viewport.AspectRatio, NearPlane, FarPlane);
+
+        public Matrix Rotation => Matrix.CreateFromYawPitchRoll(yaw, pitch, 0f);
+
+        public Vector3 Forward => Vector3.Transform(Vector3.Forward, Rotation);
+        public Vector3 Right => Vector3.Transform(Vector3.Right, Rotation);
+        public Vector3 Up => Vector3.Transform(Vector3.Up, Rotation);
+
+        public Camera3D()
         {
             yaw = -0.7f;
             pitch = -0.7f;
 
-            position = worldCenter - Forward * 3;
+            position = - Forward * 3;
         }
 
-        public void Update(Rectangle viewport, float deltaTime)
+        public override void Update(Rectangle viewport, float deltaTime)
         {
-            Viewport = new(viewport);
+            base.Update(viewport, deltaTime);
 
             if (Mouse.GetState().MiddleButton == ButtonState.Pressed)
             {

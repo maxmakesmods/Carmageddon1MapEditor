@@ -11,13 +11,13 @@ namespace Carmageddon1MapEditor.Rendering
     {
         public static void Render(
             GraphicsDevice graphicsDevice,
-            Camera3D camera,
-            RenderTarget2D target,
+            EditorView editorView,
             List<CarmaMesh> meshes,
             Dictionary<string, Carmaterial> materials,
-            Dictionary<string, CarmaPixelmap> pixelmaps)
+            Dictionary<string, CarmaPixelmap> pixelmaps,
+            Dictionary<string, CarmaPixelmap> palettes)
         {
-            graphicsDevice.SetRenderTarget(target);
+            //graphicsDevice.SetRenderTarget(editorView.RenderTarget);
             graphicsDevice.Clear(Color.Pink);
             graphicsDevice.DepthStencilState = DepthStencilState.Default;
             graphicsDevice.BlendState = BlendState.Opaque;
@@ -29,14 +29,14 @@ namespace Carmageddon1MapEditor.Rendering
             // TODO: Effect
             BasicEffect effect = new BasicEffect(graphicsDevice);
 
-            effect.View = camera.View;
-            effect.Projection = camera.Projection;
+            effect.View = editorView.Camera.View;
+            effect.Projection = editorView.Camera.Projection;
             effect.VertexColorEnabled = true;
             effect.TextureEnabled = true;
 
             foreach (CarmaMesh mesh in meshes)
             {
-                Render(graphicsDevice, effect, mesh, materials, pixelmaps);
+                Render(graphicsDevice, effect, mesh, materials, pixelmaps, palettes);
             }
 
             graphicsDevice.SetRenderTarget(null);
@@ -47,17 +47,29 @@ namespace Carmageddon1MapEditor.Rendering
             BasicEffect effect,
             CarmaMesh mesh,
             Dictionary<string, Carmaterial> materials,
-            Dictionary<string, CarmaPixelmap> pixelmaps)
+            Dictionary<string, CarmaPixelmap> pixelmaps,
+            Dictionary<string, CarmaPixelmap> palettes)
         {
             foreach (CarmaFace face in mesh.faces)
             {
-                Render(graphicsDevice, effect, mesh, face, materials, pixelmaps);
+                Render(graphicsDevice, effect, mesh, face, materials, pixelmaps, palettes);
             }
         }
 
-        private static void Render(GraphicsDevice graphicsDevice, BasicEffect effect, CarmaMesh mesh, CarmaFace face, Dictionary<string, Carmaterial> materials, Dictionary<string, CarmaPixelmap> pixelmaps)
+        private static void Render(
+            GraphicsDevice graphicsDevice,
+            BasicEffect effect,
+            CarmaMesh mesh,
+            CarmaFace face,
+            Dictionary<string, Carmaterial> materials,
+            Dictionary<string, CarmaPixelmap> pixelmaps,
+            Dictionary<string, CarmaPixelmap> palettes)
         {
             effect.Texture = GetTempTestTexture(graphicsDevice);
+
+            // TODO: get palette by name?
+            CarmaPixelmap palette = palettes.Values.FirstOrDefault();
+            Texture2D paletteTexture = palette.GetTexture(graphicsDevice, null);
 
             // triangles
             if (face.matIndex >= 0 && face.matIndex < mesh.materialNames.Count)
@@ -67,7 +79,7 @@ namespace Carmageddon1MapEditor.Rendering
                 {
                     if (material.pixName != null && pixelmaps.TryGetValue(material.pixName, out CarmaPixelmap pixelmap))
                     {
-                        effect.Texture = pixelmap.GetTexture(graphicsDevice);
+                        effect.Texture = pixelmap.GetTexture(graphicsDevice, paletteTexture);
                     }
                 }
             }
@@ -76,7 +88,7 @@ namespace Carmageddon1MapEditor.Rendering
             for (int i = 0; i < triangleVertices.Length; i++)
             {
                 triangleVertices[i].Position = mesh.vertexPositions[indices[i]];
-                triangleVertices[i].Color = Color.BlanchedAlmond;
+                triangleVertices[i].Color = Color.White;
                 triangleVertices[i].TextureCoordinate = mesh.vertexUVs[indices[i]];
             }
             foreach (EffectPass pass in effect.CurrentTechnique.Passes)

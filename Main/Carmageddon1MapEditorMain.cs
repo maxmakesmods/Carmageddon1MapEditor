@@ -3,9 +3,9 @@ using Carmageddon1MapEditor.Rendering;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
-using System.Diagnostics;
+using MonoGame.Extended;
+using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 
 namespace Carmageddon1MapEditor.Main
 {
@@ -14,10 +14,11 @@ namespace Carmageddon1MapEditor.Main
         private GraphicsDeviceManager _graphics;
         private SpriteBatch _spriteBatch;
 
-        private Camera3D camera3D;
+        private readonly List<EditorView> editorViews = [];
         private CarmDatParser datParser;
         private CarmMatParser matParser;
         private CarmPixParser pixParser;
+        private CarmPixParser palParser;
 
         public Carmageddon1MapEditorMain()
         {
@@ -39,6 +40,7 @@ namespace Carmageddon1MapEditor.Main
             string tempDebugModelPath = "E:\\SteamLibrary\\steamapps\\common\\Carmageddon1\\CARMA\\DATA\\MODELS\\";
             string tempDebugMaterialPath = "E:\\SteamLibrary\\steamapps\\common\\Carmageddon1\\CARMA\\DATA\\MATERIAL\\";
             string tempDebugPixelmapPath = "E:\\SteamLibrary\\steamapps\\common\\Carmageddon1\\CARMA\\DATA\\PIXELMAP\\";
+            string tempDebugPalettePath = "E:\\SteamLibrary\\steamapps\\common\\Carmageddon1\\CARMA\\DATA\\REG\\PALETTES\\";
 
             string tempDebugModelPath1 = tempDebugModelPath + "SCREW2.DAT";
             string tempDebugModelPath2 = tempDebugModelPath + "ANNIEX.DAT";
@@ -48,12 +50,18 @@ namespace Carmageddon1MapEditor.Main
 
             string tempDebugPixelmapPath1 = tempDebugPixelmapPath + "DESERT8.PIX";
 
+            string tempDebugPalettePath1 = tempDebugPalettePath + "DRRENDER.PAL";
 
+
+            palParser = new CarmPixParser(File.ReadAllBytes(tempDebugPalettePath1));
             pixParser = new CarmPixParser(File.ReadAllBytes(tempDebugPixelmapPath1));
             matParser = new CarmMatParser(File.ReadAllBytes(tempDebugMaterialPath1));
             datParser = new CarmDatParser(File.ReadAllBytes(tempDebugModelPath3));
 
-            camera3D = new Camera3D(datParser.meshes[0].vertexPositions.Aggregate((v1, v2) => v1+v2) / datParser.meshes[0].vertexPositions.Count);
+            editorViews.Add(new EditorView(new Camera3D(), new RectangleF(0, 0, 0.5f, 0.5f)));
+            //editorViews.Add(new EditorView(new Camera2D(), new RectangleF(0.5f, 0, 0.5f, 0.5f)));
+            //editorViews.Add(new EditorView(new Camera2D(), new RectangleF(0, 0.5f, 0.5f, 0.5f)));
+            //editorViews.Add(new EditorView(new Camera2D(), new RectangleF(0.5f, 0.5f, 0.5f, 0.5f)));
         }
 
         protected override void Update(GameTime gameTime)
@@ -61,7 +69,10 @@ namespace Carmageddon1MapEditor.Main
             if (GamePad.GetState(PlayerIndex.One).Buttons.Back == ButtonState.Pressed || Keyboard.GetState().IsKeyDown(Keys.Escape))
                 Exit();
 
-            camera3D.Update(GraphicsDevice.Viewport.Bounds, (float)gameTime.ElapsedGameTime.TotalSeconds);
+            foreach (var editorView in editorViews)
+            {
+                editorView.Update(GraphicsDevice, GraphicsDevice.Viewport, (float)gameTime.ElapsedGameTime.TotalSeconds);
+            }
 
             base.Update(gameTime);
         }
@@ -70,7 +81,22 @@ namespace Carmageddon1MapEditor.Main
         {
             GraphicsDevice.Clear(Color.CornflowerBlue);
 
-            Renderer.Render(GraphicsDevice, camera3D, null, datParser.meshes, matParser.materials, pixParser.pixelmaps);
+            foreach (var editorView in editorViews)
+            {
+                Renderer.Render(GraphicsDevice, editorView, datParser.meshes, matParser.materials, pixParser.pixelmaps, palParser.pixelmaps);
+            }
+
+
+            /*
+            SpriteBatch spriteBatch = new SpriteBatch(GraphicsDevice);
+            spriteBatch.Begin();
+            foreach (var editorView in editorViews)
+            {
+                spriteBatch.Draw(editorView.RenderTarget, editorView.Viewport, Color.White);
+            }
+            spriteBatch.End();
+            */
+
 
             base.Draw(gameTime);
         }
