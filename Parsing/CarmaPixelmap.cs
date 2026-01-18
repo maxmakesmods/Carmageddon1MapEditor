@@ -53,13 +53,21 @@ namespace Carmageddon1MapEditor.Parsing
                 }
                 else if (bytesPerPixel == 1)
                 {
+                    // assume palette
                     texture = new Texture2D(graphicsDevice, assumedWidth, assumedHeight, false, SurfaceFormat.Color);
                     Color[] paletteColors = new Color[paletteTexture.Width * paletteTexture.Height];
                     paletteTexture.GetData(paletteColors);
                     Color[] colors = new Color[pixelData.Length];
                     for (int i = 0; i < pixelData.Length; i++)
                     {
-                        colors[i] = paletteColors[pixelData[i]];
+                        if (pixelData[i] == 0)
+                        {
+                            colors[i] = Color.Transparent;
+                        }
+                        else
+                        {
+                            colors[i] = paletteColors[pixelData[i]];
+                        }
                     }
                     texture.SetData(colors);
                 }

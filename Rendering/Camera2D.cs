@@ -1,17 +1,39 @@
 ﻿using Microsoft.Xna.Framework;
+using Microsoft.Xna.Framework.Input;
+using System;
 
 namespace Carmageddon1MapEditor.Rendering
 {
     public class Camera2D : Camera
     {
-        public override Matrix View => Matrix.CreateLookAt(position, position + Vector3.Forward, Vector3.Up);
-        public override Matrix Projection => Matrix.CreateOrthographic(Viewport.Width, Viewport.Height, NearPlane, FarPlane);
+        private float zoom = 10f;
 
-        public override void Update(Rectangle viewport, float deltaTime)
+        private float cameraZoomSpeed = 1.2f;
+
+        private readonly Vector3 forward;
+        private readonly Vector3 up;
+
+        public override Matrix View => Matrix.CreateLookAt(position, position + forward, up);
+        public override Matrix Projection => Matrix.CreateOrthographic(Viewport.Width / zoom, Viewport.Height / zoom, NearPlane, FarPlane);
+
+        public Camera2D(Vector3 forward, Vector3 up)
         {
-            base.Update(viewport, deltaTime);
+            this.forward = forward;
+            this.up = up;
+        }
 
-//            if (Mouse.GetState())
+        protected override void HandleInput(float deltaTime, int deltaWheel, float deltaX, float deltaY)
+        {
+            if (deltaWheel > 0)
+            {
+                zoom *= deltaWheel * cameraZoomSpeed;
+            }
+            else if (deltaWheel < 0)
+            {
+                zoom /= -deltaWheel * cameraZoomSpeed;
+            }
+            position += Vector3.Cross(forward, up) * (deltaX / zoom);
+            position -= up * (deltaY / zoom);
         }
     }
 }

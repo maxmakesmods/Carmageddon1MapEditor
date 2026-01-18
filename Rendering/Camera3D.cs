@@ -12,10 +12,6 @@ namespace Carmageddon1MapEditor.Rendering
         private float cameraSpeed = 2f;
         private float cameraRotationSpeed = 45.0f;
 
-        private bool isInMouseMove = false;
-        private int lastMouseX = 0;
-        private int lastMouseY = 0;
-
         public override Matrix View => Matrix.CreateLookAt(position, position + Forward, Up);
         public override Matrix Projection => Matrix.CreatePerspectiveFieldOfView(MathHelper.ToRadians(fov), Viewport.AspectRatio, NearPlane, FarPlane);
 
@@ -33,30 +29,10 @@ namespace Carmageddon1MapEditor.Rendering
             position = - Forward * 3;
         }
 
-        public override void Update(Rectangle viewport, float deltaTime)
+        protected override void HandleInput(float deltaTime, int deltaWheel, float deltaX, float deltaY)
         {
-            base.Update(viewport, deltaTime);
-
-            if (Mouse.GetState().MiddleButton == ButtonState.Pressed)
-            {
-                if (isInMouseMove)
-                {
-                    float deltaYaw = (lastMouseX - Mouse.GetState().X) * cameraRotationSpeed * deltaTime;
-                    yaw = MathHelper.WrapAngle(yaw + MathHelper.ToRadians(deltaYaw));
-                    float deltaPitch = (lastMouseY - Mouse.GetState().Y) * cameraRotationSpeed * deltaTime;
-                    pitch = MathHelper.WrapAngle(pitch + MathHelper.ToRadians(deltaPitch));
-                }
-                else
-                {
-                    isInMouseMove = true;
-                }
-                lastMouseX = Mouse.GetState().X;
-                lastMouseY = Mouse.GetState().Y;
-            }
-            else
-            {
-                isInMouseMove = false;
-            }
+            yaw = MathHelper.WrapAngle(yaw + MathHelper.ToRadians(deltaX));
+            pitch = MathHelper.WrapAngle(pitch + MathHelper.ToRadians(deltaY));
 
             float speedFactor = Keyboard.GetState().IsKeyDown(Keys.LeftShift) ? 4.0f : 1.0f;
 

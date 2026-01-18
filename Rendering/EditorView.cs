@@ -8,7 +8,16 @@ namespace Carmageddon1MapEditor.Rendering
 {
     internal class EditorView
     {
+        public enum ViewMode
+        {
+            Textured,
+            Wireframe
+        }
+
+
         public Camera Camera { get; set; }
+
+        public ViewMode Mode { get; set; }
 
         public RenderTarget2D RenderTarget { get; set; }
 
@@ -23,15 +32,16 @@ namespace Carmageddon1MapEditor.Rendering
                 relativeViewport.Height * realViewport.Height
             ).ToRectangle();
 
-        public EditorView(Camera camera, RectangleF relativeViewport)
+        public EditorView(Camera camera, ViewMode viewMode, RectangleF relativeViewport)
         {
             Camera = camera;
             this.relativeViewport = relativeViewport;
+            Mode = viewMode;
         }
 
-        public void Update(GraphicsDevice graphicsDevice, Viewport viewport, float deltaTime)
+        public void Update(GraphicsDevice graphicsDevice, float deltaTime)
         {
-            realViewport = viewport;
+            realViewport = graphicsDevice.Viewport;
             RecreateRenderTargetIfNecessary(graphicsDevice);
             Camera.Update(Viewport, deltaTime);
         }
@@ -44,7 +54,7 @@ namespace Carmageddon1MapEditor.Rendering
                 Viewport.Width, Viewport.Height,
                 false,
                 SurfaceFormat.Color,
-                DepthFormat.None,
+                DepthFormat.Depth24,
                 0, RenderTargetUsage.DiscardContents, false); 
                 //new RenderTarget2D(graphicsDevice, Viewport.Width, Viewport.Height);
             }

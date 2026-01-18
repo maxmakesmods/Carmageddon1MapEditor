@@ -58,10 +58,10 @@ namespace Carmageddon1MapEditor.Main
             matParser = new CarmMatParser(File.ReadAllBytes(tempDebugMaterialPath1));
             datParser = new CarmDatParser(File.ReadAllBytes(tempDebugModelPath3));
 
-            editorViews.Add(new EditorView(new Camera3D(), new RectangleF(0, 0, 0.5f, 0.5f)));
-            //editorViews.Add(new EditorView(new Camera2D(), new RectangleF(0.5f, 0, 0.5f, 0.5f)));
-            //editorViews.Add(new EditorView(new Camera2D(), new RectangleF(0, 0.5f, 0.5f, 0.5f)));
-            //editorViews.Add(new EditorView(new Camera2D(), new RectangleF(0.5f, 0.5f, 0.5f, 0.5f)));
+            editorViews.Add(new EditorView(new Camera3D(), EditorView.ViewMode.Textured, new RectangleF(0, 0, 0.5f, 0.5f)));
+            editorViews.Add(new EditorView(new Camera2D(Vector3.Forward, Vector3.Up), EditorView.ViewMode.Wireframe, new RectangleF(0.5f, 0, 0.5f, 0.5f)));
+            editorViews.Add(new EditorView(new Camera2D(Vector3.Right, Vector3.Up), EditorView.ViewMode.Wireframe, new RectangleF(0, 0.5f, 0.5f, 0.5f)));
+            editorViews.Add(new EditorView(new Camera2D(Vector3.Down, Vector3.Forward), EditorView.ViewMode.Wireframe, new RectangleF(0.5f, 0.5f, 0.5f, 0.5f)));
         }
 
         protected override void Update(GameTime gameTime)
@@ -71,7 +71,7 @@ namespace Carmageddon1MapEditor.Main
 
             foreach (var editorView in editorViews)
             {
-                editorView.Update(GraphicsDevice, GraphicsDevice.Viewport, (float)gameTime.ElapsedGameTime.TotalSeconds);
+                editorView.Update(GraphicsDevice, (float)gameTime.ElapsedGameTime.TotalSeconds);
             }
 
             base.Update(gameTime);
@@ -87,15 +87,12 @@ namespace Carmageddon1MapEditor.Main
             }
 
 
-            /*
-            SpriteBatch spriteBatch = new SpriteBatch(GraphicsDevice);
-            spriteBatch.Begin();
+            _spriteBatch.Begin();
             foreach (var editorView in editorViews)
             {
-                spriteBatch.Draw(editorView.RenderTarget, editorView.Viewport, Color.White);
+                _spriteBatch.Draw(editorView.RenderTarget, editorView.Viewport, Color.White);
             }
-            spriteBatch.End();
-            */
+            _spriteBatch.End();
 
 
             base.Draw(gameTime);

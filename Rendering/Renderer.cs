@@ -17,7 +17,7 @@ namespace Carmageddon1MapEditor.Rendering
             Dictionary<string, CarmaPixelmap> pixelmaps,
             Dictionary<string, CarmaPixelmap> palettes)
         {
-            //graphicsDevice.SetRenderTarget(editorView.RenderTarget);
+            graphicsDevice.SetRenderTarget(editorView.RenderTarget);
             graphicsDevice.Clear(Color.Pink);
             graphicsDevice.DepthStencilState = DepthStencilState.Default;
             graphicsDevice.BlendState = BlendState.Opaque;
@@ -25,6 +25,8 @@ namespace Carmageddon1MapEditor.Rendering
             RasterizerState rasterizerState = new RasterizerState();
             rasterizerState.CullMode = CullMode.None;
             graphicsDevice.RasterizerState = rasterizerState;
+
+            graphicsDevice.SamplerStates[0] = SamplerState.LinearWrap;
 
             // TODO: Effect
             BasicEffect effect = new BasicEffect(graphicsDevice);
@@ -36,7 +38,7 @@ namespace Carmageddon1MapEditor.Rendering
 
             foreach (CarmaMesh mesh in meshes)
             {
-                Render(graphicsDevice, effect, mesh, materials, pixelmaps, palettes);
+                Render(graphicsDevice, editorView, effect, mesh, materials, pixelmaps, palettes);
             }
 
             graphicsDevice.SetRenderTarget(null);
@@ -44,6 +46,7 @@ namespace Carmageddon1MapEditor.Rendering
 
         private static void Render(
             GraphicsDevice graphicsDevice,
+            EditorView editorView,
             BasicEffect effect,
             CarmaMesh mesh,
             Dictionary<string, Carmaterial> materials,
@@ -52,12 +55,13 @@ namespace Carmageddon1MapEditor.Rendering
         {
             foreach (CarmaFace face in mesh.faces)
             {
-                Render(graphicsDevice, effect, mesh, face, materials, pixelmaps, palettes);
+                Render(graphicsDevice, editorView, effect, mesh, face, materials, pixelmaps, palettes);
             }
         }
 
         private static void Render(
             GraphicsDevice graphicsDevice,
+            EditorView editorView,
             BasicEffect effect,
             CarmaMesh mesh,
             CarmaFace face,
@@ -67,53 +71,58 @@ namespace Carmageddon1MapEditor.Rendering
         {
             effect.Texture = GetTempTestTexture(graphicsDevice);
 
-            // TODO: get palette by name?
-            CarmaPixelmap palette = palettes.Values.FirstOrDefault();
-            Texture2D paletteTexture = palette.GetTexture(graphicsDevice, null);
-
             // triangles
-            if (face.matIndex >= 0 && face.matIndex < mesh.materialNames.Count)
+            if (editorView.Mode == EditorView.ViewMode.Textured)
             {
-                string materialName = mesh.materialNames[face.matIndex];
-                if (materialName != null && materials.TryGetValue(materialName, out Carmaterial material))
+                // TODO: get palette by name?
+                CarmaPixelmap palette = palettes.Values.FirstOrDefault();
+                Texture2D paletteTexture = palette.GetTexture(graphicsDevice, null);
+
+                if (face.matIndex >= 0 && face.matIndex < mesh.materialNames.Count)
                 {
-                    if (material.pixName != null && pixelmaps.TryGetValue(material.pixName, out CarmaPixelmap pixelmap))
+                    string materialName = mesh.materialNames[face.matIndex];
+                    if (materialName != null && materials.TryGetValue(materialName, out Carmaterial material))
                     {
-                        effect.Texture = pixelmap.GetTexture(graphicsDevice, paletteTexture);
+                        if (material.pixName != null && pixelmaps.TryGetValue(material.pixName, out CarmaPixelmap pixelmap))
+                        {
+                            effect.Texture = pixelmap.GetTexture(graphicsDevice, paletteTexture);
+                        }
                     }
                 }
-            }
-            short[] indices = [face.indices.x, face.indices.y, face.indices.z];
-            VertexPositionColorTexture[] triangleVertices = new VertexPositionColorTexture[indices.Length];
-            for (int i = 0; i < triangleVertices.Length; i++)
-            {
-                triangleVertices[i].Position = mesh.vertexPositions[indices[i]];
-                triangleVertices[i].Color = Color.White;
-                triangleVertices[i].TextureCoordinate = mesh.vertexUVs[indices[i]];
-            }
-            foreach (EffectPass pass in effect.CurrentTechnique.Passes)
-            {
-                pass.Apply();
-                graphicsDevice.DrawUserPrimitives(PrimitiveType.TriangleList, triangleVertices, 0, 1, VertexPositionColorTexture.VertexDeclaration);
+                short[] indices = [face.indices.x, face.indices.y, face.indices.z];
+                VertexPositionColorTexture[] triangleVertices = new VertexPositionColorTexture[indices.Length];
+                for (int i = 0; i < triangleVertices.Length; i++)
+                {
+                    triangleVertices[i].Position = mesh.vertexPositions[indices[i]];
+                    triangleVertices[i].Color = Color.White;
+                    triangleVertices[i].TextureCoordinate = mesh.vertexUVs[indices[i]];
+                }
+                foreach (EffectPass pass in effect.CurrentTechnique.Passes)
+                {
+                    pass.Apply();
+                    graphicsDevice.DrawUserPrimitives(PrimitiveType.TriangleList, triangleVertices, 0, 1, VertexPositionColorTexture.VertexDeclaration);
+                }
             }
 
             // lines
-            effect.Texture = GetTempTestTexture(graphicsDevice);
-            VertexPositionColor[] lineVertices = new VertexPositionColor[6];
-            for (int i = 0; i < lineVertices.Length; i++)
+            if (editorView.Mode == EditorView.ViewMode.Wireframe)
             {
-                lineVertices[i].Color = Color.Black;
-            }
-            lineVertices[0].Position = mesh.vertexPositions[indices[0]];
-            lineVertices[1].Position = mesh.vertexPositions[indices[1]];
-            lineVertices[2].Position = mesh.vertexPositions[indices[1]];
-            lineVertices[3].Position = mesh.vertexPositions[indices[2]];
-            lineVertices[4].Position = mesh.vertexPositions[indices[2]];
-            lineVertices[5].Position = mesh.vertexPositions[indices[0]];
-            foreach (EffectPass pass in effect.CurrentTechnique.Passes)
-            {
-                pass.Apply();
-                graphicsDevice.DrawUserPrimitives(PrimitiveType.LineList, lineVertices, 0, 3, VertexPositionColor.VertexDeclaration);
+                VertexPositionColor[] lineVertices = new VertexPositionColor[6];
+                for (int i = 0; i < lineVertices.Length; i++)
+                {
+                    lineVertices[i].Color = Color.Black;
+                }
+                lineVertices[0].Position = mesh.vertexPositions[face.indices.x];
+                lineVertices[1].Position = mesh.vertexPositions[face.indices.y];
+                lineVertices[2].Position = mesh.vertexPositions[face.indices.y];
+                lineVertices[3].Position = mesh.vertexPositions[face.indices.z];
+                lineVertices[4].Position = mesh.vertexPositions[face.indices.z];
+                lineVertices[5].Position = mesh.vertexPositions[face.indices.x];
+                foreach (EffectPass pass in effect.CurrentTechnique.Passes)
+                {
+                    pass.Apply();
+                    graphicsDevice.DrawUserPrimitives(PrimitiveType.LineList, lineVertices, 0, 3, VertexPositionColor.VertexDeclaration);
+                }
             }
         }
 
